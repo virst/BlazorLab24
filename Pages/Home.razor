@@ -1,0 +1,66 @@
+﻿@inject IJSRuntime JS
+
+@page "/"
+
+
+<PageTitle>BlazorLab24</PageTitle>
+<p>
+    w: <input @bind-value="w" />
+    h: <input @bind-value="h" />
+    cellWidth: <input @bind-value="cellWidth" />
+</p>
+<canvas id="myCanvas" width="@width" height="@height" style="background-color: aqua;" @onclick="canvasClick"></canvas>
+
+@code {
+    int _w = 20;
+    int _h = 10;
+
+    int w { get => _w; set { _w = value; lg = null; } }
+    int h { get => _h; set { _h = value; lg = null; } }
+    int cellWidth { get; set; } = 50;
+
+    int width => w * cellWidth;
+    int height => h * cellWidth;
+
+    LabGen? lg = null;
+    CellData? selectedCell = null;
+    CellData? finCell = null;
+    Rcv? rcv;
+    DijkstraRez? dr;
+    int[][]? mas;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+        if (lg == null)
+        {
+            selectedCell = null;
+            finCell = null;
+            lg = new LabGen(height / cellWidth, width / cellWidth);
+            lg.Generate();
+            mas = LabConverot.Converct(lg);
+            rcv = new Rcv(lg.MazeWidth);
+        }
+        await JS.InvokeVoidAsync("SetCellWidth", cellWidth);
+        await JS.InvokeVoidAsync("DrawLab", "myCanvas", lg.Map, selectedCell, finCell);
+        await JS.InvokeVoidAsync("DrawWay", "myCanvas", dr, selectedCell, finCell, int.MaxValue);
+    }
+
+    void canvasClick(MouseEventArgs e)
+    {
+        if (rcv == null || mas == null) return;
+
+        if (selectedCell == null)
+        {
+            selectedCell = new CellData((int)e.OffsetY / cellWidth, (int)e.OffsetX / cellWidth);
+            Dijkstra t = new Dijkstra(mas);
+            rcv.SetRC(selectedCell.Row, selectedCell.Col);
+            dr = t.GetDijkstraRez(rcv.Val);
+
+        }
+        else
+        {
+            finCell = new CellData((int)e.OffsetY / cellWidth, (int)e.OffsetX / cellWidth);
+        }
+    }
+}
